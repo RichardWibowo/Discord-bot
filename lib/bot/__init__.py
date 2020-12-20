@@ -1,19 +1,40 @@
+from asyncio import sleep
 from datetime import datetime
-from discord import Intents,Embed
 
-from discord.ext.commands import Bot as Bot_basic
-from discord.ext.commands import CommandNotFound
+
+from discord.ext.commands import Bot as BotBase
+
+from discord.ext.commands import when_mentioned_or, command, has_permissions
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+
+from glob import glob
 
 from ..db import db
 
 PREFIX = "."
 OWNER_ID = [709231814748930099]
+COGS = [path.split("\\")[-1][:-3] for path in glob("./lib/cogs/*.py")]
 
-class Bot(Bot_basic):
+class Ready(object):
+    def __init__(self):
+        for cog in COGS:
+            setattr(self, cog, False)
+
+    def wake_up(self,cog):
+        setattr(self, cog, True)
+        print(f"{cog} Cog ready")
+
+    def complete_ring(self):
+        return all([getattr(self, cog)]for cog in COGS)
+
+
+class Bot(BotBase):
     def __init__(self): 
         self.PREFIX = PREFIX                     #adding prefix as an atribute
-        self.ready = False                       #check later if the bot is ready or not later
+        self.ready = False  
+        self.cogs_ready = Ready()                     #check later if the bot is ready or not later
         self.guild = None                        #to define
         self.scheduler = AsyncIOScheduler()      #to schedule our bot
         
@@ -24,9 +45,21 @@ class Bot(Bot_basic):
             owner_id = OWNER_ID,
             intents = Intents.all(),
          ) #creating the bot
+   
+   
+    def setup(self):
+	    for cog in COGS:
+		    self.load_extension(f"lib.cogs.{cog}")
+		    print(f" {cog} cog loaded")
+
+		    print("setup complete")
 
     def run(self,version):
         self.VERSION = version
+
+        print("begin assembling remnants")
+        self.setup()
+
         with open("./lib/bot/token.0" , "r", encoding="utf-8") as tf:
             self.TOKEN = tf.read()
 
@@ -47,6 +80,7 @@ class Bot(Bot_basic):
     async def on_Command_error (self, err, exc):
         if isinstance(exc , CommandNotFound):
            await ctx.send("error 404 = command not found") 
+           await self.stdout.send("error nanoraa") 
            pass
 
         elif hasattr(exc,"original") :
@@ -54,16 +88,24 @@ class Bot(Bot_basic):
 
         else :
             raise exc
+    
+    async def print_message(self):
+            await self.stdout.send("wake up rise and shine, its time to code again ")
 
     async def on_ready(self):
         if not self.ready :
-            self.ready = True
+            
             self.guild = self.get_guild(779601376773799977)
+            self.stdout = channel= self.get_channel(783532237526138920)
+            self.scheduler.add_job(self.print_message, CronTrigger(hour = 7, minute= 0, second = 0))
             self.scheduler.start()
+            
+            while not self.cogs_ready.complete_ring():
+                await sleep(0.5)
+                
+            self.ready = True
             print("your bot has been summoned")
-
-            channel = self.get_channel(783532237526138920)
-            await channel.send("hello master")
+            await self.stdout.send("hi master")
 
             #embed = Embed(title = "now online", 
             #              description = "use me to learn ", 
@@ -90,7 +132,9 @@ class Bot(Bot_basic):
             print("your bot at your service")
 
     async def on_message(self,message):
-        pass
+
+        if not message.author.bot:
+          await self.process_commands(message)
 
 bot = Bot()
 
