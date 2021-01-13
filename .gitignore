@@ -1,2 +1,18 @@
 
 lib/bot/token.0
+*.dll
+*.yml
+*.exe
+*.jsa
+*.properties
+*.access
+*.template
+*.policy
+*.security
+*.txt
+*.h
+*.jmod
+*.md
+jdk-13.0.2/legal/java.base/LICENSE
+jdk-13.0.2/legal/java.base/ADDITIONAL_LICENSE_INFO
+*.0
